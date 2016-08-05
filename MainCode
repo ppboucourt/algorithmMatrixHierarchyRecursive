@@ -1,0 +1,89 @@
+
+	private boolean found(String a, String b, Collection<CatalogoValorRelacionadoDTO> listSrc) {
+		for (CatalogoValorRelacionadoDTO catalogoValorRelacionadoDTO : listSrc) {
+			if (catalogoValorRelacionadoDTO.getId()
+					.getCodigoCatalogoValorPadre().equals(a)
+					&& catalogoValorRelacionadoDTO.getId()
+							.getCodigoCatalogoValorRelacionado().equals(b)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	private List<List<String>> buildBtName(HashMap map, List<List<Integer>> allPaths){
+		List<String> catalogosJerarquia = new ArrayList<>();
+		List<List<String>> catalogosGeneralJerarquias = new ArrayList<List<String>>();
+		for (int i = 0; i < allPaths.size(); i++) {
+			if(allPaths.get(i).size() == 1){
+				catalogosJerarquia.add((String) map.get(allPaths.get(i).get(0)));
+			}else{
+				for (int j = 0; j < allPaths.get(i).size(); j++) {
+					catalogosJerarquia.add((String)map.get(allPaths.get(i).get(j)));
+				}
+			}
+			catalogosGeneralJerarquias.add(new ArrayList<>(catalogosJerarquia));
+			catalogosJerarquia = new ArrayList<>();
+		}
+		return catalogosGeneralJerarquias;
+	}
+
+	public List<List<String>> build() {
+		Collection<CatalogoValorRelacionadoDTO> listSrc = obtenerJerarquiaPorDivisionGeoPolitica();
+		Set<String> parentsSet = new HashSet<>();
+		Set<String> set = new HashSet<>();
+		for (CatalogoValorRelacionadoDTO element : listSrc) {
+			parentsSet.add(element.getId().getCodigoCatalogoValorPadre());
+			set.add(element.getId().getCodigoCatalogoValorRelacionado());
+		}
+		set.addAll(parentsSet);
+
+		HashMap<Integer, String> map = new HashMap<>();
+		int index = 0;
+		for (String value : set) {
+			map.put(index, value);
+			index++;
+		}
+		int n = set.size();
+		int[][] matriz = new int[n][n];
+		for (int i = 0; i < n; i++) {
+			for (int j = 0; j < n; j++) {
+				String parent = map.get(i);
+				String related = map.get(j);
+				if (i == j) {
+					matriz[i][j] = 0;
+				} else {
+					matriz[i][j] = found(parent, related, listSrc) ? 1 : 0;
+				}
+			}
+		}
+
+		List<List<Integer>> allPaths = new ArrayList<>();
+		for (int i = 0; i < set.size(); i++) {
+			List<Integer> bt = new ArrayList<>();
+			bt.add(i);
+			buscarCamino(matriz, i, allPaths, bt);
+		}
+		List<List<String>> catalogosGeneralJerarquias = buildBtName(map, allPaths);
+		return catalogosGeneralJerarquias;
+	}
+
+	private void buscarCamino(int[][] matriz, int inicio,
+			List<List<Integer>> allPaths, List<Integer> backTracking) {
+		for (int i = 0; i < matriz.length; i++) {
+			if (matriz[inicio][i] == 1) {
+				backTracking.add(i);
+				buscarCamino(matriz, i, allPaths, backTracking);
+				backTracking.remove(backTracking.size() - 1);
+			}
+		}
+		Boolean isLeaf = true;
+		for (int i = 0; i < matriz.length; i++) {
+			if (matriz[backTracking.get(backTracking.size()-1)][i] == 1) {
+				isLeaf = false;
+				break;
+			}
+		}
+		if(isLeaf)
+			allPaths.add(new ArrayList<>(backTracking));
+	}
